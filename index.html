@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>捷運約會抽抽樂</title>
+<!--
+【線上同步設定（兩人共用同一份 Google 試算表）】
+1. 把「捷運約會資料表.xlsx」上傳到 Google 雲端硬碟，用 Google 試算表開啟（檔案→儲存為 Google 試算表）。
+2. 試算表：擴充功能→Apps Script，貼上 Code.gs 全部內容、改好暗號後儲存，再「部署→新增部署作業→網頁應用程式」（執行身分：我；存取權：所有人），複製 /exec 網址。
+3. 把網址與暗號填入下方 API。放到 GitHub Pages 後，兩人用同一個網址開啟即可。
+API.url 留空時，資料只存在這支手機的瀏覽器。
+-->
+<link href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;height:100dvh;display:flex;flex-direction:column;font-family:"Chiron GoRound TC","PingFang TC","Noto Sans TC",system-ui,sans-serif;color:#5b4b5e;background:linear-gradient(120deg,#ffe5ec,#e0f4ff,#e6ffe9,#fff3d6);background-size:300% 300%;animation:bg 16s ease infinite;overflow:hidden}
+@keyframes bg{50%{background-position:100% 50%}}
+header{padding:8px 14px 4px;text-align:center;z-index:2}
+h1{margin:0;font-size:20px}h1 span{display:inline-block;animation:wob 2s ease-in-out infinite}h1 span+span{animation-delay:.6s}
+@keyframes wob{50%{transform:rotate(-14deg) scale(1.15)}}
+#stat{font-size:13px;margin-top:2px}#stat i{font-style:normal;display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 3px 0 8px;border:2px solid #fff}
+.cloud{position:fixed;font-size:44px;opacity:.55;pointer-events:none;animation:dr 40s linear infinite}
+@keyframes dr{from{transform:translateX(-80px)}to{transform:translateX(110vw)}}
+#wrap{flex:1;overflow:auto;position:relative;z-index:1;-webkit-overflow-scrolling:touch}
+#map{display:block;height:auto}
+.ln{stroke-dasharray:22 0}
+.st{cursor:pointer}.st text{font-size:11px;fill:#5b4b5e;paint-order:stroke;stroke:#fffc;stroke-width:3px}
+.dot{fill:#b9f0d6;stroke:#fff;stroke-width:3}.on .dot{fill:#ff8fab}
+.pk .dot{animation:pls .9s ease-in-out infinite;transform-box:fill-box;transform-origin:center}.roll .dot{fill:#ffd43b;transform:scale(1.9);transform-box:fill-box;transform-origin:center}
+@keyframes pls{50%{transform:scale(1.9)}}
+.hop{animation:hop .9s ease-in-out infinite;transform-box:fill-box}
+@keyframes hop{50%{transform:translateY(-8px) rotate(-4deg)}}
+.heart{font-size:16px;text-anchor:middle;animation:fl 1.6s ease-out infinite}
+@keyframes fl{from{transform:translateY(0);opacity:1}to{transform:translateY(-16px);opacity:0}}
+footer{display:flex;gap:8px;justify-content:center;padding:8px 10px calc(8px + env(safe-area-inset-bottom));z-index:2}
+button,.btn2{font:inherit;border:0;border-radius:22px;padding:9px 14px;background:#fff;color:#5b4b5e;box-shadow:0 2px 0 #e9d5e0;cursor:pointer}
+button:active{transform:translateY(2px);box-shadow:none}
+.big{background:#ff8fab;color:#fff;font-size:18px;font-weight:700;padding:10px 26px;box-shadow:0 3px 0 #e56d90}
+.pri{background:#ff8fab;color:#fff;width:100%;margin-top:10px;box-shadow:0 2px 0 #e56d90}.ghost{background:none;box-shadow:none;width:100%;margin-top:6px;font-size:13px;color:#a08ca5}
+#zm{position:absolute;right:10px;top:8px;display:flex;flex-direction:column;gap:6px;z-index:3}
+#zm button{padding:6px 12px;font-size:18px}
+#sheet{position:fixed;left:0;right:0;bottom:0;max-height:82dvh;overflow:auto;background:#fffafc;border-radius:24px 24px 0 0;padding:16px 16px 28px;box-shadow:0 -6px 30px #5b4b5e33;transform:translateY(105%);transition:transform .35s cubic-bezier(.2,1.2,.4,1);z-index:5;max-width:560px;margin:auto}
+#sheet.open{transform:none}
+#sheet h2{margin:0 0 6px;font-size:20px}#sheet h3{margin:14px 0 6px;font-size:15px}
+.tag{font-size:11px;background:#ffe3ec;border-radius:10px;padding:2px 8px;margin-left:4px;font-weight:400}
+.cover img{width:100%;max-height:220px;object-fit:cover;border-radius:16px}.ph{height:130px;border-radius:16px;background:repeating-linear-gradient(45deg,#fff0f5,#fff0f5 12px,#f0faff 12px,#f0faff 24px);display:grid;place-items:center;color:#b9a3be}
+.btn2{display:inline-block;margin:8px 0;font-size:13px;padding:6px 12px}
+input,textarea{font:inherit;width:100%;border:2px solid #f3dbe6;border-radius:12px;padding:8px 10px;margin-top:6px;background:#fff;color:inherit}
+textarea{min-height:64px;resize:vertical}
+.v{background:#fff;border:2px dashed #ffc2d4;border-radius:16px;padding:10px;margin-top:10px}.v a{font-size:13px;color:#e56d90;display:block;margin:6px 0 0}
+.row{display:flex;gap:8px;align-items:center}.row button{padding:6px 10px}
+.ph2{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.ph2 span{position:relative}.ph2 img{width:76px;height:76px;object-fit:cover;border-radius:12px}
+.ph2 b{position:absolute;top:-6px;right:-6px;background:#ff8fab;color:#fff;border-radius:50%;width:20px;height:20px;text-align:center;font-size:12px;line-height:20px;cursor:pointer}
+.add{width:76px;height:76px;border-radius:12px;border:2px dashed #b9f0d6;display:grid;place-items:center;cursor:pointer}
+#toast{position:fixed;left:50%;top:70px;transform:translate(-50%,-30px);background:#fff;border-radius:20px;padding:10px 16px;box-shadow:0 6px 24px #5b4b5e33;opacity:0;pointer-events:none;transition:.35s;z-index:9;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#lb{position:fixed;inset:0;background:#000b;display:none;place-items:center;z-index:12}#lb img{max-width:96vw;max-height:92dvh;border-radius:12px}
+dialog{border:0;border-radius:22px;padding:18px;width:min(92vw,360px);color:#5b4b5e}dialog::backdrop{background:#5b4b5e55}
+dialog label{display:block;margin-top:8px;font-size:13px}dialog .row{margin-top:12px}dialog .pri{margin:0}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head><body>
+<div class="cloud" style="top:14%">☁️</div><div class="cloud" style="top:58%;animation-delay:-18s;font-size:34px">☁️</div>
+<header><h1><span>🦊</span> 捷運約會抽抽樂 <span>🦝</span></h1><div id="stat"></div></header>
+<main id="wrap"><div id="zm"><button id="zi">＋</button><button id="zo">－</button></div><svg id="map" viewBox="-80 20 1290 1190" xmlns="http://www.w3.org/2000/svg"></svg></main>
+<footer><button class="big" id="go">🎲 抽！</button><button id="man">＋ 手動新增</button><button id="rst">↺ 重置抽選</button></footer>
+<div id="sheet"></div><div id="toast"></div><div id="lb"></div>
+<dialog id="dlg"><form method="dialog"><h3 style="margin:0">手動新增去過的站</h3>
+<input id="dn" list="dl" placeholder="輸入或選擇站名"><datalist id="dl"></datalist>
+<label>日期（可留空）<input type="date" id="dd"></label><label>去過幾次<input type="number" id="dc" min="1" max="50" value="1"></label>
+<div class="row"><button class="ghost" value="x" style="margin:0">取消</button><button class="pri" id="dok" value="ok">新增</button></div></form></dialog>
+<script>
+const API={url:"",key:""}; // ← url 貼 Apps Script 的 /exec 網址；key 與 Code.gs 的 KEY 相同
+
+/* ===== 站點資料（示意圖座標；轉乘站在 T 固定位置，其餘站自動等距排列） ===== */
+const T={台北車站:[600,520],西門:[540,545],中山:[600,450],中正紀念堂:[600,610],東門:[655,625],古亭:[545,640],忠孝新生:[665,520],松江南京:[670,445],南京復興:[730,445],大安:[745,655],忠孝復興:[725,520],南港展覽館:[1100,440],民權西路:[600,385],大橋頭:[540,360],大坪林:[450,885],七張:[440,930],十四張:[400,890],景安:[400,750],板橋:[330,600],"新埔／新埔民生":[400,585],頭前庄:[340,420],頂埔:[120,780],紅樹林:[250,125],新北產業園區:[255,350],北投:[500,110],濱海沙崙:[-30,130]};
+const L=[
+["文湖線","#b98b6b",[["動物園",1000,920],"木柵","萬芳社區","萬芳醫院","辛亥","麟光","六張犁","科技大樓",[755,730],"大安","忠孝復興","南京復興","中山國中",["松山機場",790,375],["大直",795,335],["劍南路",780,295],"西湖","港墘","文德","內湖","大湖公園","葫洲",["東湖",1090,285],["南港軟體園區",1110,350],"南港展覽館"]],
+["淡水信義線","#ff7b7b",[["淡水",200,150],"紅樹林","竹圍","關渡","忠義","復興崗","北投","奇岩","唭哩岸","石牌","明德","芝山","士林","劍潭","圓山","民權西路","雙連","中山","台北車站","台大醫院","中正紀念堂","東門","大安森林公園","大安","信義安和","台北101／世貿","象山",["廣慈／奉天宮",990,700]]],
+["淡水信義線","#ff7b7b",["北投",["新北投",545,70]]],
+["松山新店線","#5fc48b",[["松山",855,445],"南京三民","台北小巨蛋","南京復興","松江南京","中山","北門","西門","小南門","中正紀念堂","古亭","台電大樓","公館","萬隆","景美","大坪林","七張","新店區公所",["新店",490,1010]]],
+["松山新店線","#5fc48b",["七張",["小碧潭",520,940]]],
+["中和新蘆線","#ffa94d",[["南勢角",355,790],"景安",["永安市場",445,700],["頂溪",495,650],"古亭","東門","忠孝新生","松江南京","行天宮","中山國小","民權西路","大橋頭","台北橋","菜寮","三重","先嗇宮","頭前庄","新莊","輔大","丹鳳",["迴龍",195,510]]],
+["中和新蘆線","#ffa94d",["大橋頭","三民高中","徐匯中學","三和國中","三重國小",["蘆洲",470,185]]],
+["板南線","#5aa9ff",["頂埔","永寧","土城","海山","亞東醫院","府中","板橋","新埔／新埔民生","江子翠","龍山寺","西門","台北車站","善導寺","忠孝新生","忠孝復興","忠孝敦化","國父紀念館","市政府","永春","後山埤","昆陽",["南港",1040,520],"南港展覽館"]],
+["環狀線","#ffd43b",["大坪林","十四張","秀朗橋","景平","景安","中和","橋和","中原","板新","板橋","新埔／新埔民生","頭前庄","幸福","新北產業園區"]],
+["三鶯線","#d4a017",["頂埔","媽祖田","長壽山","橫溪","龍埔",["三峽",240,1000],"臺北大學",["鶯歌",215,1085],"陶瓷老街","國華","永吉公園",["鶯桃福德",80,1160]]],
+["淡海輕軌","#ff6f91",["紅樹林","竿蓁林","淡金鄧公",["淡江大學",135,50],"淡金北新","新市一路",["淡水行政中心",15,60],"濱海義山","濱海沙崙","淡海新市鎮",["崁頂",-30,220]]],
+["淡海輕軌","#4dd0e1",["濱海沙崙","台北海洋大學","沙崙",["淡水漁人碼頭",110,180]]],
+["安坑輕軌","#a98467",["十四張","新和國小","陽光運動公園","安康","景文科大","耕莘安康院區","台北小城","玫瑰中國城",["雙城",430,1170]]],
+["機場捷運","#9b8cff",["台北車站",["三重(機捷)",480,455],[290,440],"新北產業園區","新莊副都心","泰山","泰山貴和","體育大學",["長庚醫院",90,385],"林口","山鼻",["坑口",40,490],"機場第一航廈","機場第二航廈","機場旅館","大園","橫山","領航","高鐵桃園站","桃園體育園區","興南","環北",["老街溪",40,1110]]]
+];
+const P={},S={},LN=[];
+L.forEach(([lab,col,it])=>{
+ const q=it.map(e=>typeof e=="string"?{n:e,p:T[e]}:e.length==2?{p:e}:{n:e[0],p:[e[1],e[2]]});
+ let a=0;
+ for(let i=1;i<q.length;i++)if(q[i].p){const m=i-a-1;for(let j=1;j<=m;j++){const f=j/(m+1),A=q[a].p,B=q[i].p;q[a+j].p=[A[0]+(B[0]-A[0])*f,A[1]+(B[1]-A[1])*f]}a=i}
+ q.forEach((e,i)=>{if(!e.n)return;P[e.n]=e.p;const s=S[e.n]=S[e.n]||{l:[]};if(!s.l.includes(lab))s.l.push(lab);if(s.o==null){const A=(q[i-1]||e).p,B=(q[i+1]||e).p;s.o=Math.abs(B[0]-A[0])>=Math.abs(B[1]-A[1])}});
+ LN.push([col,q.map(e=>e.p)]);
+});
+const ST=Object.keys(P).sort();
+
+/* ===== 資料儲存（Google 試算表 / 本機） ===== */
+const Store={visits:[],intros:{},busy:0,on(){},
+async api(b){const r=await fetch(API.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:API.key,...b})}),j=await r.json();if(j.error)throw new Error(j.error);return j},
+async pull(){try{const j=await(await fetch(API.url+"?key="+encodeURIComponent(API.key))).json();if(j.error)throw new Error(j.error);Store.visits=j.visits;Store.intros=j.intros;Store.on()}catch(e){console.error(e);toast("⚠️ 無法連線到試算表："+esc(e.message),5000)}},
+async init(){
+ if(API.url){await Store.pull();setInterval(()=>{if(!document.hidden&&!Store.busy)Store.pull()},15000);return}
+ try{const j=JSON.parse(localStorage.mrt||"{}");Store.visits=j.v||[];Store.intros=j.i||{}}catch(e){}
+ Store.on()},
+loc(){try{localStorage.mrt=JSON.stringify({v:Store.visits,i:Store.intros})}catch(e){alert("本機儲存空間已滿，請減少照片。")}},
+async w(b){if(!API.url)return Store.loc();Store.busy++;try{await Store.api(b)}catch(e){alert("儲存失敗，請確認網路："+e.message)}finally{Store.busy--}},
+async sv(v){const i=Store.visits.findIndex(x=>x.id==v.id);i<0?Store.visits.push(v):Store.visits[i]=v;Store.on();await Store.w({act:"sv",v})},
+async dv(id){Store.visits=Store.visits.filter(x=>x.id!=id);Store.on();await Store.w({act:"dv",id})},
+async si(n,o){Store.intros[n]={...Store.intros[n],...o};Store.on();await Store.w({act:"si",n,...o})},
+async up(d){if(!API.url)return d;return(await Store.api({act:"up",d})).url}
+};
+
+/* ===== 畫面 ===== */
+const $=s=>document.querySelector(s),svg=$("#map"),wrap=$("#wrap"),sheet=$("#sheet");
+const state={pick:null,cur:null,z:1};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pu=u=>{const m=/\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})/.exec(u||"");return m?`https://drive.google.com/thumbnail?id=${m[1]||m[2]}&sz=w1000`:u};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const today=()=>new Date().toLocaleDateString("sv");
+const FOX='<path d="M8-4Q24-8 20 5Q13 4 8 0Z" fill="#ff922b"/><path d="M17 3Q21 4 20 5Q18 6 15 4Z" fill="#fff"/><ellipse cy="-4" rx="7" ry="6" fill="#ffa94d"/><ellipse cy="-15" rx="9" ry="8" fill="#ffa94d"/><path d="M-8-19L-11-30L-3-22ZM8-19L11-30L3-22Z" fill="#ff922b"/><path d="M-9-13Q0-4 9-13Q4-9 0-9Q-4-9-9-13Z" fill="#fff"/><circle cx="-3.5" cy="-16" r="1.3" fill="#4a3b4d"/><circle cx="3.5" cy="-16" r="1.3" fill="#4a3b4d"/><circle cy="-12" r="1.6" fill="#4a3b4d"/>';
+const RAC='<path d="M-8-3Q-24-6-20 5Q-13 5-8 0Z" fill="#9d96ab"/><path d="M-17 2L-14 5M-13 1L-11 4" stroke="#5b4b5e" stroke-width="2"/><ellipse cy="-4" rx="7" ry="6" fill="#b8b2c4"/><circle cx="-8" cy="-22" r="3.5" fill="#9d96ab"/><circle cx="8" cy="-22" r="3.5" fill="#9d96ab"/><ellipse cy="-15" rx="9.5" ry="8" fill="#b8b2c4"/><path d="M-10-17Q0-21 10-17Q9-12 4-13L-4-13Q-9-12-10-17Z" fill="#5b4b5e"/><circle cx="-3.5" cy="-16" r="1.5" fill="#fff"/><circle cx="3.5" cy="-16" r="1.5" fill="#fff"/><ellipse cy="-10" rx="3" ry="2" fill="#fff"/><circle cy="-11" r="1.3" fill="#4a3b4d"/>';
+const vcount=()=>{const c={};Store.visits.forEach(v=>c[v.s]=(c[v.s]||0)+1);return c};
+function render(){
+ const vc=vcount();
+ let h=LN.map(([c,p])=>`<polyline class="ln" points="${p.map(x=>x.map(Math.round).join(",")).join(" ")}" fill="none" stroke="${c}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>`).join("");
+ for(const n in P){const[x,y]=P[n],v=vc[n],o=S[n].o;
+  h+=`<g class="st${v?" on":""}${state.pick==n?" pk":""}" data-n="${esc(n)}"><circle class="dot" cx="${x}" cy="${y}" r="${S[n].l.length>1?9:6.5}"/><text x="${o?x:x+11}" y="${o?y+19:y+4}" text-anchor="${o?"middle":"start"}">${esc(n)}${v>1?" ×"+v:""}</text><circle cx="${x}" cy="${y}" r="16" fill="transparent"/></g>`}
+ if(state.pick){const[x,y]=P[state.pick];h+=`<g transform="translate(${x-15} ${y-10}) scale(1.3)"><g class="hop">${FOX}</g></g><g transform="translate(${x+15} ${y-10}) scale(1.3)"><g class="hop" style="animation-delay:.3s">${RAC}</g></g><text class="heart" x="${x}" y="${y-52}">💗</text>`}
+ svg.innerHTML=h;
+ $("#stat").innerHTML=`已去過 ${Object.keys(vc).length}／${ST.length} 站・共 ${Store.visits.length} 次<i style="background:#ff8fab"></i>去過<i style="background:#b9f0d6"></i>還沒去`;
+}
+function zoom(z){state.z=Math.max(.35,Math.min(2.5,z));svg.style.width=1500*state.z+"px"}
+function focusOn(n,smooth){const k=svg.clientWidth/1290,[x,y]=P[n];wrap.scrollTo({left:(x+80)*k-wrap.clientWidth/2,top:(y-20)*k-wrap.clientHeight/2,behavior:smooth?"smooth":"auto"})}
+let tt;function toast(h,ms=4000){const t=$("#toast");t.innerHTML=h;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),ms)}
+
+/* ===== 抽站 ===== */
+function draw(){
+ const vc=vcount(),pool=ST.filter(n=>!vc[n]);
+ if(!pool.length)return toast("🎉 全部都去過啦！可以取消幾站再抽");
+ closeSheet();state.pick=null;render();
+ const pick=pool[Math.random()*pool.length|0],N=16+(Math.random()*6|0);let i=0,last=null;
+ $("#go").disabled=true;
+ const step=()=>{
+  if(last)last.classList.remove("roll");
+  if(i>=N){state.pick=pick;render();focusOn(pick,true);$("#go").disabled=false;
+   toast(`<b>🦊🦝 就決定去「${esc(pick)}」站！</b><br><button onclick="openSheet('${pick.replace(/'/g,"\\'")}')">看這一站</button>`,8000);return}
+  const c=i==N-1?pick:pool[Math.random()*pool.length|0];
+  last=svg.querySelector(`[data-n="${CSS.escape?c.replace(/"/g,'\\"'):c}"]`);
+  if(last){last.classList.add("roll");focusOn(c,true)}
+  i++;setTimeout(step,70+i*i*1.3)};
+ step()}
+
+/* ===== 站點資訊卡 ===== */
+function visitCard(v,n){return`<div class="v" data-id="${v.id}"><div class="row"><input type="date" data-f="d" value="${v.d||""}" style="margin:0"><button data-act="delv">🗑</button></div>
+<input data-f="p" placeholder="地點（店名、地址）" value="${esc(v.p||"")}">${v.p?`<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(v.p+" "+n+"站")}">📍 在 Google 地圖開啟</a>`:""}
+<textarea data-f="n" placeholder="回憶小記…">${esc(v.n||"")}</textarea>
+<div class="ph2">${(v.ph||[]).map((u,i)=>`<span><img src="${pu(u)}" data-act="big"><b data-act="delp" data-i="${i}">✕</b></span>`).join("")}<label class="add">＋📷<input type="file" accept="image/*" multiple hidden data-act="addp"></label></div></div>`}
+function renderSheet(){
+ const n=state.cur;if(!n)return;
+ const vs=Store.visits.filter(v=>v.s==n).sort((a,b)=>(a.d||"").localeCompare(b.d||"")),it=Store.intros[n]||{};
+ sheet.innerHTML=`<div class="row"><h2 style="flex:1">${esc(n)}站${S[n].l.map(l=>`<span class="tag">${l}</span>`).join("")}</h2><button data-act="close">✕</button></div>
+ <div class="cover">${it.c?`<img src="${pu(it.c)}" data-act="big">`:`<div class="ph">📷 尚未上傳實景照片</div>`}</div>
+ <label class="btn2">${it.c?"更換":"上傳"}實景照片<input type="file" accept="image/*" hidden data-act="cover"></label>
+ <textarea id="intro" placeholder="尚未填寫（點這裡寫簡介）">${esc(it.t||"")}</textarea>
+ ${vs.length?`<h3>💕 我們的回憶（${vs.length} 次）</h3>${vs.map(v=>visitCard(v,n)).join("")}`:""}
+ <button class="pri" data-act="addv">${vs.length?"＋ 再新增一次到訪":"✅ 我們去過了！"}</button>
+ ${vs.length?`<button class="ghost" data-act="unv">取消去過（刪除此站所有紀錄）</button>`:""}`}
+function openSheet(n){state.cur=n;$("#toast").classList.remove("show");renderSheet();sheet.scrollTop=0;sheet.classList.add("open");focusOn(n,true)}
+function closeSheet(){state.cur=null;sheet.classList.remove("open")}
+const rs=f=>new Promise(r=>{const i=new Image;i.onload=()=>{const k=Math.min(1,900/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*k;c.height=i.height*k;c.getContext("2d").drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(i.src);r(c.toDataURL("image/jpeg",.6))};i.src=URL.createObjectURL(f)});
+const getV=e=>Store.visits.find(v=>v.id==e.closest(".v")?.dataset.id);
+
+sheet.addEventListener("click",async e=>{
+ const t=e.target.closest("[data-act]");if(!t)return;const a=t.dataset.act,n=state.cur,v=getV(t);
+ if(a=="close")closeSheet();
+ else if(a=="big"){$("#lb").innerHTML=`<img src="${t.src}">`;$("#lb").style.display="grid"}
+ else if(a=="addv"){await Store.sv({id:uid(),s:n,d:today(),p:"",n:"",ph:[]});renderSheet()}
+ else if(a=="delv"&&confirm("刪除這次到訪紀錄？")){await Store.dv(v.id);renderSheet()}
+ else if(a=="delp"){v.ph.splice(+t.dataset.i,1);await Store.sv(v);renderSheet()}
+ else if(a=="unv"&&confirm(`確定取消「${n}」的去過紀錄？照片也會一併刪除。`)){for(const x of Store.visits.filter(x=>x.s==n))await Store.dv(x.id);if(state.pick==n)state.pick=null;renderSheet()}
+});
+sheet.addEventListener("change",async e=>{
+ const t=e.target,n=state.cur;
+ if(t.type=="file"){const v=t.dataset.act=="cover"?null:getV(t);toast("📤 上傳中…",60000);
+  try{const ph=await Promise.all([...t.files].map(async f=>Store.up(await rs(f))));
+   if(!v)await Store.si(n,{c:ph[0]});else{v.ph=[...(v.ph||[]),...ph];await Store.sv(v)}}catch(err){alert("上傳失敗："+err.message)}
+  $("#toast").classList.remove("show");renderSheet()}
+ else if(t.id=="intro")Store.si(n,{t:t.value});
+ else if(t.dataset.f){const v=getV(t);v[t.dataset.f]=t.value;await Store.sv(v);if(t.dataset.f=="p")renderSheet()}
+});
+$("#lb").onclick=e=>e.currentTarget.style.display="none";
+svg.addEventListener("click",e=>{const g=e.target.closest("[data-n]");if(g)openSheet(g.dataset.n)});
+
+/* ===== 按鈕 ===== */
+$("#go").onclick=draw;
+$("#rst").onclick=()=>{state.pick=null;render();toast("已重置抽選 ↺",1800)};
+$("#zi").onclick=()=>zoom(state.z*1.25);$("#zo").onclick=()=>zoom(state.z/1.25);
+$("#dl").innerHTML=ST.map(n=>`<option value="${esc(n)}">`).join("");
+$("#man").onclick=()=>{$("#dn").value="";$("#dd").value="";$("#dc").value=1;$("#dlg").showModal()};
+$("#dok").onclick=async e=>{
+ e.preventDefault();const n=$("#dn").value.trim();
+ if(!P[n])return alert("找不到這個站名，請從清單選擇。");
+ for(let i=0;i<Math.max(1,+$("#dc").value||1);i++)await Store.sv({id:uid(),s:n,d:$("#dd").value,p:"",n:"",ph:[]});
+ $("#dlg").close();toast(`已標記「${esc(n)}」為去過 💕`,2200)};
+
+Store.on=()=>{render();if(state.cur&&!sheet.contains(document.activeElement))renderSheet()};
+zoom(1);render();focusOn("台北車站");Store.init();
+</script></body></html>
