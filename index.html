@@ -66,7 +66,7 @@ dialog label{display:block;margin-top:8px;font-size:13px}dialog .row{margin-top:
 <label>日期（可留空）<input type="date" id="dd"></label><label>去過幾次<input type="number" id="dc" min="1" max="50" value="1"></label>
 <div class="row"><button class="ghost" value="x" style="margin:0">取消</button><button class="pri" id="dok" value="ok">新增</button></div></form></dialog>
 <script>
-const API={url:"",key:""}; // ← url 貼 Apps Script 的 /exec 網址；key 與 Code.gs 的 KEY 相同
+const API={url:"https://script.google.com/macros/s/AKfycbxu37oO-4kdR2EDsOQTZcsWvTirAZ5wchVjXtTaw-k21ZLSLLt5e7RBAKtwrWspOI15wA/exec",key:"250410"}; // ← url 貼 Apps Script 的 /exec 網址；key 與 Code.gs 的 KEY 相同
 
 /* ===== 站點資料（示意圖座標；轉乘站在 T 固定位置，其餘站自動等距排列） ===== */
 const T={台北車站:[600,520],西門:[540,545],中山:[600,450],中正紀念堂:[600,610],東門:[655,625],古亭:[545,640],忠孝新生:[665,520],松江南京:[670,445],南京復興:[730,445],大安:[745,655],忠孝復興:[725,520],南港展覽館:[1100,440],民權西路:[600,385],大橋頭:[540,360],大坪林:[450,885],七張:[440,930],十四張:[400,890],景安:[400,750],板橋:[330,600],"新埔／新埔民生":[400,585],頭前庄:[340,420],頂埔:[120,780],紅樹林:[250,125],新北產業園區:[255,350],北投:[500,110],濱海沙崙:[-30,130]};
@@ -94,6 +94,19 @@ L.forEach(([lab,col,it])=>{
  q.forEach((e,i)=>{if(!e.n)return;P[e.n]=e.p;const s=S[e.n]=S[e.n]||{l:[]};if(!s.l.includes(lab))s.l.push(lab);if(s.o==null){const A=(q[i-1]||e).p,B=(q[i+1]||e).p;s.o=Math.abs(B[0]-A[0])>=Math.abs(B[1]-A[1])}});
  LN.push([col,q.map(e=>e.p)]);
 });
+const LP={};
+(function(){
+ const W=s=>[...s].reduce((a,c)=>a+(c.charCodeAt(0)>255?11:6),0)+14,ob=[],hit=(a,b)=>a[0]<b[2]&&a[2]>b[0]&&a[1]<b[3]&&a[3]>b[1],dots={};
+ for(const n in P){const[x,y]=P[n],r=S[n].l.length>1?12:9;dots[n]=[x-r,y-r,x+r,y+r]}
+ Object.keys(P).sort((a,b)=>S[b].l.length-S[a].l.length).forEach(n=>{
+  const[x,y]=P[n],w=W(n),h=12;
+  const C={b:[x-w/2,y+9,x+w/2,y+21,"middle",x,y+19],a:[x-w/2,y-21,x+w/2,y-9,"middle",x,y-12],r:[x+9,y-6,x+9+w,y+6,"start",x+11,y+4],l:[x-9-w,y-6,x-9,y+6,"end",x-11,y+4],b2:[x-w/2,y+21,x+w/2,y+33,"middle",x,y+31],a2:[x-w/2,y-33,x+w/2,y-21,"middle",x,y-24]};
+  let best=null,bs=1e9;
+  for(const k of S[n].o?["b","a","r","l","b2","a2"]:["r","l","b","a","b2","a2"]){const c=C[k];let s=0;
+   for(const m in dots)if(m!=n&&hit(c,dots[m]))s++;
+   for(const o of ob)if(hit(c,o))s++;
+   if(s<bs){bs=s;best=c;if(!s)break}}
+  ob.push(best.slice(0,4));LP[n]={x:best[5],y:best[6],a:best[4],bad:bs}})})();
 const ST=Object.keys(P).sort();
 
 /* ===== 資料儲存（Google 試算表 / 本機） ===== */
@@ -126,10 +139,10 @@ function render(){
  const vc=vcount();
  let h=LN.map(([c,p])=>`<polyline class="ln" points="${p.map(x=>x.map(Math.round).join(",")).join(" ")}" fill="none" stroke="${c}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>`).join("");
  for(const n in P){const[x,y]=P[n],v=vc[n],o=S[n].o;
-  h+=`<g class="st${v?" on":""}${state.pick==n?" pk":""}" data-n="${esc(n)}"><circle class="dot" cx="${x}" cy="${y}" r="${S[n].l.length>1?9:6.5}"/><text x="${o?x:x+11}" y="${o?y+19:y+4}" text-anchor="${o?"middle":"start"}">${esc(n)}${v>1?" ×"+v:""}</text><circle cx="${x}" cy="${y}" r="16" fill="transparent"/></g>`}
+  h+=`<g class="st${v?" on":""}${state.pick==n?" pk":""}" data-n="${esc(n)}"><circle class="dot" cx="${x}" cy="${y}" r="${S[n].l.length>1?9:6.5}"/><text x="${LP[n].x}" y="${LP[n].y}" text-anchor="${LP[n].a}">${esc(n)}${v>1?" ×"+v:""}</text><circle cx="${x}" cy="${y}" r="16" fill="transparent"/></g>`}
  if(state.pick){const[x,y]=P[state.pick];h+=`<g transform="translate(${x-15} ${y-10}) scale(1.3)"><g class="hop">${FOX}</g></g><g transform="translate(${x+15} ${y-10}) scale(1.3)"><g class="hop" style="animation-delay:.3s">${RAC}</g></g><text class="heart" x="${x}" y="${y-52}">💗</text>`}
  svg.innerHTML=h;
- $("#stat").innerHTML=`已去過 ${Object.keys(vc).length}／${ST.length} 站・共 ${Store.visits.length} 次<i style="background:#ff8fab"></i>去過<i style="background:#b9f0d6"></i>還沒去`;
+ $("#stat").innerHTML=`已去過 ${Object.keys(vc).length}／${ST.length} 站・共 ${Store.visits.length} 次<i style="background:#ff8fab"></i>去過<i style="background:#b9f0d6"></i>還沒去<br><small>${API.url?"☁️ 已連線 Google 試算表":"📱 僅存在本機（尚未填入 API 網址）"}</small>`;
 }
 function zoom(z){state.z=Math.max(.35,Math.min(2.5,z));svg.style.width=1500*state.z+"px"}
 function focusOn(n,smooth){const k=svg.clientWidth/1290,[x,y]=P[n];wrap.scrollTo({left:(x+80)*k-wrap.clientWidth/2,top:(y-20)*k-wrap.clientHeight/2,behavior:smooth?"smooth":"auto"})}
